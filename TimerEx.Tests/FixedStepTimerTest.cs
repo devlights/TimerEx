@@ -114,12 +114,13 @@ namespace TimerEx.Tests
 
                 var w = want.ToString("HH:mm:ss.fff");
                 var g = got.ToString("HH:mm:ss.fff");
-                Trace.WriteLine($"want:[{w}]\tgot:[{g}]");
+                var diff = got - want;
+                Trace.WriteLine($"want:[{w}]\tgot:[{g}] {diff.Milliseconds}ms");
 
                 var wantMillisecond = want.Millisecond;
                 var gotMillisecond = got.Millisecond;
 
-                var lowerLimit = wantMillisecond - tolerance;
+                var lowerLimit = wantMillisecond;
                 var upperLimit = wantMillisecond + tolerance;
 
                 bool ok = lowerLimit <= gotMillisecond && gotMillisecond <= upperLimit;

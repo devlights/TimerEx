@@ -37,7 +37,7 @@ namespace TimerEx
             /// イベントが発生した時間
             /// </summary>
             public DateTime SignalTime { get; }
-            
+
             /// <summary>
             /// <see cref="FixedStepTimer.Start"/> してから何回目のイベントかを示します。
             /// </summary>
@@ -64,22 +64,22 @@ namespace TimerEx
         /// 内部で利用しているタイマーオブジェクト
         /// </summary>
         private readonly Timer _timer;
-        
+
         /// <summary>
         /// インターバル (TimeSpan.Ticks の値)
         /// </summary>
         private readonly long _step;
-        
+
         /// <summary>
         /// 次のタイマーイベントまでの時間 (TimeSpan.Ticks の値)
         /// </summary>
         private long _nextTick;
-        
+
         /// <summary>
         /// 現在までの <see cref="FixedStepTimer.Tick"/> イベント発生回数
         /// </summary>
         private long _tickCount;
-        
+
         /// <summary>
         /// <see cref="FixedStepTimer.Start"/> した際に即座に最初のイベントを発生させるかどうか
         /// </summary>
@@ -106,8 +106,8 @@ namespace TimerEx
         /// <summary>
         /// <see cref="Start"/> してからTickイベントが発生した回数
         /// </summary>
-        public long TickCount => Thread.VolatileRead(ref this._tickCount);
-        
+        public long TickCount => Interlocked.Read(ref this._tickCount);
+
         /// <summary>
         /// 開始します。
         /// </summary>
@@ -135,10 +135,7 @@ namespace TimerEx
                 {
                     await Task.Yield();
 
-                    var count = Thread.VolatileRead(ref this._tickCount);
-                    count += 1;
-                    Thread.VolatileWrite(ref this._tickCount, count);
-
+                    var count = Interlocked.Increment(ref this._tickCount);
                     this.Tick?.Invoke(this, new TickEventArgs(now, count));
                 });
             }
@@ -160,7 +157,7 @@ namespace TimerEx
         {
             this._timer.Close();
         }
-        
+
         /// <summary>
         /// 次のインターバルを計算して返します。
         /// </summary>
@@ -185,15 +182,13 @@ namespace TimerEx
         {
             if (DateTime.Now.Ticks >= this._nextTick)
             {
-                var count = Thread.VolatileRead(ref this._tickCount);
-                count += 1;
-                Thread.VolatileWrite(ref this._tickCount, count);
-
+                var count = Interlocked.Increment(ref this._tickCount);
                 this.Tick?.Invoke(this, new TickEventArgs(e.SignalTime, count));
 
-                var next = Thread.VolatileRead(ref this._nextTick);
-                next += this._step;
-                Thread.VolatileWrite(ref this._nextTick, next);
+                Interlocked.CompareExchange(
+                    ref this._nextTick,
+                    this._nextTick + this._step,
+                    this._nextTick);
             }
 
             var interval = this.CalcTimerInterval();
